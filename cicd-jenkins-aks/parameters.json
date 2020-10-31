@@ -1,0 +1,60 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "spClientId": {
+            "value": "aaeee81e-3048-46c8-8d06-26d6d59f8bd6"
+        },
+        "spClientSecret": {
+            "value": null
+        },
+        "linuxAdminUsername": {
+            "value": "azureuser"
+        },
+        "linuxAdminPassword": {
+            "value": null
+        },
+        "linuxSSHPublicKey": {
+            "value": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDC901R/o3HwRV+ioZqOjOgTV+Pnc9zubGy6yIpuvMJm7e0W7i3GIjyLJ/3l1i70galJ4+fIsSmLzzI/pMWStdsqgjNgZWjNIeIkdl9XZHaH8WX0NpA8tZlj9Vp8wQqHprluWQIZPWB2MG7ZDHnWvbIU45EVbSamuGPcSXceOQ1cnTnOAlYV5Yjx8VCrJGOJi/sfABTECyHLjH4E4oGtVs0JlH1nrg0Ub2BWrlCmjSPcIHpM93XRSoN6QGJ+2SlMn7vWy3ucjNo/cEiaQPyqy47G8sWnr88ffqJaIrNPyvz9vr8sHc/z8GW8Cc7o8KbDi6UE1Q7OUHHeasOgox8UODZ mario@rooez.com"
+        },
+        "cosmosDbName": {
+            "value": "cosmos-rooez"
+        },
+        "acrName": {
+            "value": "acrrooez"
+        },
+        "jenkinsDnsPrefix": {
+            "value": "jenkins"
+        },
+        "grafanaDnsPrefix": {
+            "value": "grafana"
+        },
+        "grafanaVMSize": {
+            "value": "Standard_DS2_v2"
+        },
+        "jenkinsVMSize": {
+            "value": "Standard_DS2_v2"
+        },
+        "kubernetesDnsPrefix": {
+            "value": "k8s"
+        },
+        "kubernetesClusterName": {
+            "value": "aksrooez"
+        },
+        "kubernetesAgentCount": {
+            "value": 1
+        },
+        "kubernetesAgentVMSize": {
+            "value": "Standard_DS2_v2"
+        },
+        "kubernetesVersion": {
+            "value": "1.16.13"
+        },
+        "gitRepository": {
+            "value": "https://github.com/Azure/azure-quickstart-templates"
+        },
+        "location": {
+            "value": "eastus"
+        }
+    }
+}

@@ -1,0 +1,389 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "spClientId": {
+            "type": "String",
+            "metadata": {
+                "description": "Service Principal Client ID used by Jenkins and Azure Container Service (AKS)."
+            }
+        },
+        "spClientSecret": {
+            "type": "SecureString",
+            "metadata": {
+                "description": "Service Principal Client Secret used by Jenkins and Azure Container Service(AKS)."
+            }
+        },
+        "linuxAdminUsername": {
+            "type": "String",
+            "metadata": {
+                "description": "User name for the Linux Virtual Machines (Jenkins and Kubernetes)."
+            }
+        },
+        "linuxAdminPassword": {
+            "type": "SecureString",
+            "metadata": {
+                "description": "Password for the Jenkins and Grafana Virtual Machines."
+            }
+        },
+        "linuxSSHPublicKey": {
+            "type": "String",
+            "metadata": {
+                "description": "Configure all linux machines with the SSH RSA public key string. Your key should include three parts, for example 'ssh-rsa AAAAB...snip...UcyupgH azureuser@linuxvm'"
+            }
+        },
+        "cosmosDbName": {
+            "type": "String",
+            "metadata": {
+                "description": "Name of the CosmosDB."
+            }
+        },
+        "acrName": {
+            "type": "String",
+            "metadata": {
+                "description": "Name of the Azure Container Registery. The name may contain alpha numeric characters only and must be between 5 and 50 characters."
+            }
+        },
+        "jenkinsDnsPrefix": {
+            "type": "String",
+            "metadata": {
+                "description": "Unique DNS Name for the Public IP used to access the Jenkins Virtual Machine."
+            }
+        },
+        "grafanaDnsPrefix": {
+            "type": "String",
+            "metadata": {
+                "description": "Unique DNS Name for the Public IP used to access the Grafana Virtual Machine."
+            }
+        },
+        "grafanaVMSize": {
+            "defaultValue": "Standard_DS2_v2",
+            "type": "String",
+            "metadata": {
+                "description": "The size of the Kubernetes host virtual machine."
+            }
+        },
+        "jenkinsVMSize": {
+            "defaultValue": "Standard_DS2_v2",
+            "type": "String",
+            "metadata": {
+                "description": "The size of the Kubernetes host virtual machine."
+            }
+        },
+        "kubernetesDnsPrefix": {
+            "type": "String",
+            "metadata": {
+                "description": "Optional DNS prefix to use with hosted Kubernetes API server FQDN."
+            }
+        },
+        "kubernetesClusterName": {
+            "type": "String",
+            "metadata": {
+                "description": "The name of the Managed Cluster resource."
+            }
+        },
+        "kubernetesAgentCount": {
+            "defaultValue": 1,
+            "minValue": 1,
+            "maxValue": 50,
+            "type": "Int",
+            "metadata": {
+                "description": "The number of nodes for the cluster."
+            }
+        },
+        "kubernetesAgentVMSize": {
+            "defaultValue": "Standard_DS2_v2",
+            "type": "String",
+            "metadata": {
+                "description": "The size of the Kubernetes host virtual machine."
+            }
+        },
+        "kubernetesVersion": {
+            "defaultValue": "1.16.13",
+            "allowedValues": [
+                "1.16.13",
+                "1.14.8",
+                "1.14.7",
+                "1.13.12",
+                "1.13.11",
+                "1.12.8",
+                "1.12.7",
+                "1.11.10",
+                "1.11.9",
+                "1.10.13",
+                "1.10.12"
+            ],
+            "type": "String",
+            "metadata": {
+                "description": "The version of Kubernetes."
+            }
+        },
+        "gitRepository": {
+            "defaultValue": "https://github.com/Azure/azure-quickstart-templates",
+            "type": "String",
+            "metadata": {
+                "description": "URL to a public git repository that includes a Dockerfile."
+            }
+        },
+        "_artifactsLocation": {
+            "defaultValue": "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/jenkins-cicd-container/",
+            "type": "String",
+            "metadata": {
+                "description": "The base URI where artifacts required by this template are located. When the template is deployed using the accompanying scripts, a private location in the subscription will be used and this value will be automatically generated."
+            }
+        },
+        "_artifactsLocationSasToken": {
+            "defaultValue": "",
+            "type": "SecureString",
+            "metadata": {
+                "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
+            }
+        },
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "String",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "variables": {
+        "jenkinsVMName": "jenkins",
+        "grafanaVMName": "grafana",
+        "cosmosDbName": "[parameters('cosmosDbName')]",
+        "acrName": "[parameters('acrName')]",
+        "virtualNetworkName": "virtual-network",
+        "subnetName": "default-subnet"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.ContainerRegistry/registries",
+            "apiVersion": "2019-05-01",
+            "name": "[variables('acrName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Basic"
+            },
+            "properties": {
+                "adminUserEnabled": true
+            }
+        },
+        {
+            "type": "Microsoft.DocumentDb/databaseAccounts",
+            "apiVersion": "2016-03-31",
+            "name": "[variables('cosmosDbName')]",
+            "location": "[parameters('location')]",
+            "kind": "MongoDB",
+            "properties": {
+                "databaseAccountOfferType": "Standard"
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('virtualNetworkName')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.0.0.0/16"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('subnetName')]",
+                        "properties": {
+                            "addressPrefix": "10.0.0.0/24"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-08-01",
+            "name": "jenkinsDeployment",
+            "dependsOn": [
+                "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
+                "[resourceId('Microsoft.DocumentDb/databaseAccounts', variables('cosmosDbName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[uri(parameters('_artifactsLocation'), concat('nested/jenkins.json', parameters('_artifactsLocationSasToken')))]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "jenkinsVMName": {
+                        "value": "[variables('jenkinsVMName')]"
+                    },
+                    "jenkinsVMSize": {
+                        "value": "[parameters('jenkinsVMSize')]"
+                    },
+                    "spClientId": {
+                        "value": "[parameters('spClientId')]"
+                    },
+                    "spClientSecret": {
+                        "value": "[parameters('spClientSecret')]"
+                    },
+                    "linuxAdminUsername": {
+                        "value": "[parameters('linuxAdminUsername')]"
+                    },
+                    "linuxAdminPassword": {
+                        "value": "[parameters('linuxAdminPassword')]"
+                    },
+                    "dnsPrefix": {
+                        "value": "[parameters('jenkinsDnsPrefix')]"
+                    },
+                    "subnetId": {
+                        "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
+                    },
+                    "gitRepository": {
+                        "value": "[parameters('gitRepository')]"
+                    },
+                    "acrServer": {
+                        "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))).loginServer]"
+                    },
+                    "acrUsername": {
+                        "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2019-05-01').username]"
+                    },
+                    "acrPassword": {
+                        "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2019-05-01').passwords[0].value]"
+                    },
+                    "mongoDbURI": {
+                        "value": "[concat('mongodb://', variables('cosmosDbName'), ':', uriComponent(listKeys(resourceId('Microsoft.DocumentDb/databaseAccounts', variables('cosmosDbName')), '2016-03-31').primaryMasterKey), '@', variables('cosmosDbName'), '.documents.azure.com:10255/?ssl=true&replicaSet=globaldb')]"
+                    },
+                    "kubernetesResourceGroupName": {
+                        "value": "[resourceGroup().name]"
+                    },
+                    "kubernetesClusterName": {
+                        "value": "[parameters('kubernetesClusterName')]"
+                    },
+                    "_artifactsLocation": {
+                        "value": "[parameters('_artifactsLocation')]"
+                    },
+                    "_artifactsLocationSasToken": {
+                        "value": "[parameters('_artifactsLocationSasToken')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.ContainerService/managedClusters",
+            "apiVersion": "2019-10-01",
+            "name": "[parameters('kubernetesClusterName')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "kubernetesVersion": "[parameters('kubernetesVersion')]",
+                "dnsPrefix": "[parameters('kubernetesDnsPrefix')]",
+                "agentPoolProfiles": [
+                    {
+                        "name": "agentpool",
+                        "osDiskSizeGB": 0,
+                        "count": "[parameters('kubernetesAgentCount')]",
+                        "vmSize": "[parameters('kubernetesAgentVMSize')]",
+                        "osType": "Linux",
+                        "storageProfile": "ManagedDisks"
+                    }
+                ],
+                "linuxProfile": {
+                    "adminUsername": "[parameters('linuxAdminUsername')]",
+                    "ssh": {
+                        "publicKeys": [
+                            {
+                                "keyData": "[parameters('linuxSSHPublicKey')]"
+                            }
+                        ]
+                    }
+                },
+                "servicePrincipalProfile": {
+                    "ClientId": "[parameters('spClientId')]",
+                    "Secret": "[parameters('spClientSecret')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-08-01",
+            "name": "grafanaDeployment",
+            "dependsOn": [
+                "[resourceId('Microsoft.DocumentDb/databaseAccounts', variables('cosmosDbName'))]",
+                "[resourceId('Microsoft.ContainerService/managedClusters', parameters('kubernetesClusterName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[uri(parameters('_artifactsLocation'), concat('nested/grafana.json', parameters('_artifactsLocationSasToken')))]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "grafanaVMName": {
+                        "value": "[variables('grafanaVMName')]"
+                    },
+                    "grafanaVMSize": {
+                        "value": "[parameters('grafanaVMSize')]"
+                    },
+                    "spClientId": {
+                        "value": "[parameters('spClientId')]"
+                    },
+                    "spClientSecret": {
+                        "value": "[parameters('spClientSecret')]"
+                    },
+                    "linuxAdminUsername": {
+                        "value": "[parameters('linuxAdminUsername')]"
+                    },
+                    "linuxAdminPassword": {
+                        "value": "[parameters('linuxAdminPassword')]"
+                    },
+                    "dnsPrefix": {
+                        "value": "[parameters('grafanaDnsPrefix')]"
+                    },
+                    "subnetId": {
+                        "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
+                    },
+                    "cosmosDbName": {
+                        "value": "[parameters('cosmosDbName')]"
+                    },
+                    "kubernetesClusterName": {
+                        "value": "[parameters('kubernetesClusterName')]"
+                    },
+                    "_artifactsLocation": {
+                        "value": "[parameters('_artifactsLocation')]"
+                    },
+                    "_artifactsLocationSasToken": {
+                        "value": "[parameters('_artifactsLocationSasToken')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "jenkinsURL": {
+            "type": "String",
+            "value": "[reference('jenkinsDeployment').outputs.jenkinsURL.value]"
+        },
+        "jenkinsSSH": {
+            "type": "String",
+            "value": "[reference('jenkinsDeployment').outputs.jenkinsSSH.value]"
+        },
+        "azureContainerRegistryUrl": {
+            "type": "String",
+            "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))).loginServer]"
+        },
+        "kubernetesControlPlaneFQDN": {
+            "type": "String",
+            "value": "[reference(concat('Microsoft.ContainerService/managedClusters/', parameters('kubernetesClusterName'))).fqdn]"
+        },
+        "grafanaUrl": {
+            "type": "String",
+            "value": "[reference('grafanaDeployment').outputs.grafanaURL.value]"
+        }
+    }
+}
